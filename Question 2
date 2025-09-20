@@ -1,0 +1,63 @@
+Q2 — PWM level shifting (0–3.3V → ±1.65V) and back
+
+You showed a 0→3.3V PWM (orange) and a midline (blue). You want:
+circuit to shift waveform around 0V mean so it becomes −1.65V … +1.65V (bipolar),
+circuit to shift it back to original 0…3.3V (unipolar).
+
+Below are two practical, well-known approaches.
+Option A — Practical approach using a charge-pump (or negative rail) + AC-coupling + buffer
+
+Requirements :
+-To get a true negative swing (below 0V) you must create a negative supply or reference. 
+ The simplest practical way is a small charge-pump inverter 
+ (e.g. ICL7660 / TC7660 or similar) 
+ to generate −3.3V from +3.3V, or use a ±5V supply if available.
+-Use a rail-to-rail op-amp that supports the chosen supply rails.
+-Circuit to convert 0..3.3V PWM → −1.65..+1.65V
+-Create a negative rail: use a charge pump to generate −3.3V from the +3.3V MCU supply.
+-Use an op-amp powered from +3.3V and −3.3V (or ±5V).
+-AC-couple the PWM output into a unity-gain buffer whose reference (midpoint) is 0V. Practically:
+-Put a series capacitor C1 (e.g. 1 µF) between MCU PWM pin and the op-amp input.
+-On the op amp input, provide bias to 0V (because op amp has negative rail available, 0V is mid).
+-Use the op amp as buffer (voltage follower). The AC coupling removes the DC offset; 
+ since the op amp can output negative voltages, the signal will center about 0V and 
+ swing ±1.65V if amplitude is set correctly (you can add gain/attenuation if required).
+
+Components & notes
+-Charge pump: ICL7660 or similar. Watch max frequency and load.
+-Op-amp: rail-to-rail output that can swing close to rails at your supply (or supply wider rails like ±5V).
+-C1: 1 μF coupling cap, Rbias (e.g. 100k) to ground to set DC bias at 0V at op-amp input.
+-If you want exact ±1.65 amplitude from 0–3.3 input, use a simple unity buffer and scale input 
+ with a resistor divider before coupling so amplitude becomes 3.3/2 = 1.65 peak (then AC coupling centers it about 0).
+
+Short summary: remove DC (series cap), provide negative rail (charge pump), buffer the AC onto 0V reference using an op-amp → you get bipolar ±1.65V.
+
+
+Option B — Using RC + mid-rail virtual ground (no negative supply) — produces small-signal bipolar around virtual 0 (only if you accept a virtual mid-supply as 0)
+
+If you cannot generate a negative rail, you can create a virtual mid-rail (Vmid = +1.65V) and treat that as the new "zero". 
+Then AC couple and shift the PWM so it swings ±1.65 around Vmid. But note: that still results in voltages between 0 and 3.3 
+unless you create an offset reference and then reference your later stage to a true 0V — to get true negative voltages you 
+\need an actual negative supply. So this method is typically used when you want a symmetrical waveform around a midpoint for 
+further processing (e.g., feeding into an ADC that expects signals around mid-supply), not to create real negative voltages.
+
+-How to shift back to 0..3.3V
+-To shift the bipolar signal back to MCU levels:
+-AC-couple the bipolar waveform (series cap).
+-Use a resistor divider from +3.3V to GND to create a 1.65V bias node (Vbias), buffer it with an op-amp.
+-Feed the AC through the coupling cap into an op-amp summing node where you add Vbias back (sum AC onto 1.65V). 
+ The result is a 0..3.3V PWM (depending on amplitudes).
+-Optionally clamp with rail-to-rail op-amp or diode clamps to protect MCU input.
+
+-Example simpler circuit to shift back
+Use a coupling capacitor followed by a resistor to the MCU input.
+Pull the MCU input to 1.65V through a buffer (R divider + op amp buffer).
+The AC will ride on 1.65V; to make it 0..3.3V use an amplifier with offset (Vout = Vin + 1.65V).
+Concrete parts & small schematic suggestions
+Charge pump: ICL7660 / LTC1044 or a small DC-DC inverter (if you need −3.3V).
+Op amp: OPA2134 (audio), TS922, or MCP6002 (check supply and rail-to-rail specs). If supply is only +/-3.3, choose op amp that supports those rails.
+Caps: 1µF for coupling, 10µF for charge pump decoupling.
+Resistors: 100k bias resistors; R divider e.g. 2 × 10k for 1.65V.
+Concise recommendation (practical)
+If you truly need ±1.65V, use a small charge pump to get a negative rail, then AC-couple and buffer with an op-amp.
+To shift back: AC-couple again and add +1.65V offset using a buffered divider (or summing amplifier).
